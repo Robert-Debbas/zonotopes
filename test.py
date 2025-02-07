@@ -179,7 +179,7 @@ class Zonotope:
                 b_new.append(self.b[i])
             else:
                 # Unstable case: l[i] < 0 < u[i]
-                a_param = -u[i] / (u[i] - l[i])
+                a_param = u[i] / (u[i] - l[i])
                 b_param = -u[i] * l[i] / (u[i] - l[i])
 
                 # Adjust W and add new noise symbol
@@ -208,44 +208,51 @@ class Zonotope:
         b_new = []
 
         for i in range(self.W.shape[0]):
+
             if u[i] <= 0:
                 # Fully negative case: clamp(x, 0, C^{ub}) = 0
                 W_new.append(np.hstack((np.zeros(self.W.shape[1]), 0)))  # Append 0 for the new noise dimension
                 b_new.append(0)
+
             elif l[i] >= C_ub:
                 # Fully above C^{ub}: clamp(x, 0, C^{ub}) = C^{ub}
                 W_new.append(np.hstack((np.zeros(self.W.shape[1]), 0)))  # No noise
                 b_new.append(C_ub)
+
             elif l[i] >= 0 and u[i] <= C_ub:
                 # Fully within the range [0, C^{ub}]: clamp(x, 0, C^{ub}) = x
                 W_new.append(np.hstack((self.W[i], 0)))  # Append 0 for the new noise dimension
                 b_new.append(self.b[i])
+
             else:
+                
                 # Mixed case: clamp(x, 0, C^{ub}) needs abstraction
                 if l[i] < 0 and C_ub <= u[i]:
                     # Case: l <= 0 <= C^{ub} <= u
-                    a_param = -u[i] / (u[i] - l[i])
-                    b_param = -u[i] * l[i] / (u[i] - l[i])
+                    a_param = np.min((C_ub / (C_ub - l[i])), (C_ub / u[i]))
+                    b_param = np.max((1 - a_param) * C_ub, - a_param * l[i])
 
                     # Adjust W and add new noise symbol
                     new_row = np.hstack((a_param * self.W[i], b_param / 2))
                     W_new.append(new_row)
                     b_new.append(a_param * self.b[i] + b_param / 2)
+
                 elif l[i] < 0 and u[i] <= C_ub:
                     # Case: l <= 0 < u <= C^{ub}
-                    a_param = 1
-                    b_param = 0  # Because it clamps below 0
+                    a_param = u[i] / (u[i] - l[i])
+                    b_param = -u[i] * l[i] / (u[i] - l[i])
                     new_row = np.hstack((a_param * self.W[i], b_param / 2))
                     W_new.append(new_row)
                     b_new.append(a_param * self.b[i] + b_param / 2)
+
                 elif l[i] >= 0 and C_ub < u[i]:
                     # Case: 0 <= l <= C^{ub} < u
-                    a_param = C_ub / (u[i] - l[i])
-                    b_param = l[i] * C_ub / (u[i] - l[i])
+                    a_param = (C_ub - l[i]) / (u[i] - l[i])
+                    b_param = (C_ub - l[i]) * (1 - a_param)
 
-                    new_row = np.hstack((a_param * self.W[i], (C_ub - b_param) / 2))
+                    new_row = np.hstack((a_param * self.W[i], b_param / 2))
                     W_new.append(new_row)
-                    b_new.append(a_param * self.b[i] + (C_ub - b_param) / 2)
+                    b_new.append(a_param * self.b[i] + b_param / 2)
 
         W_new = np.array(W_new)
         b_new = np.array(b_new)
