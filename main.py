@@ -25,17 +25,6 @@ layer2 = Layer(W2, b2, activation='id')
 
 layers = [layer0, layer1, layer2]
 
-# Weights for the hidden layer: shape (2, 2)
-# weights_hidden = np.array([[3.98, 5.36],[4.02, 2.24]])
-# bias_hidden = np.array([[6.72], [-7.06]])
-# weights_output = np.array([[0.26, 1.04]])
-# bias_output = np.array([[-2.92]])
-
-# layer0 = Layer(weights_hidden, bias_hidden, activation='relu')
-# layer1 = Layer(weights_output, bias_output, activation='id')
-
-# layers = [layer0, layer1]
-
 network = Network(layers) 
 
 intermediate_network = copy.deepcopy(network)
@@ -59,10 +48,6 @@ quantized_network = intermediate_network.quantize(quant_config)
 ################################################################
 # INPUT                                                        #
 ################################################################
-
-# input_box = np.array([
-#         [0.5, 1.5],  
-#         [1.5, 2.5]])
 
 input_box = np.array([
         [0.5, 1.5],  
