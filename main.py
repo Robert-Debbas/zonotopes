@@ -4,8 +4,8 @@ from itertools import product
 import copy
 from network import Layer 
 from network import Network
-from Zonotope import Zonotope
-from CZonotope import ConstrainedZonotope
+from zonotope import Zonotope
+from constrained_zonotope import ConstrainedZonotope
 
 ################################################################
 # CONSTRUCT NETWORKS                                           #             
