@@ -2,7 +2,7 @@ import numpy as np
 from itertools import combinations
 from itertools import product
 from zonotope import Zonotope
-from constrained_onotope import ConstrainedZonotope
+from constrained_zonotope import ConstrainedZonotope
 from abstract import clamp
 from abstract import abstract_to_vertices
 from abstract import concretize_to_box
