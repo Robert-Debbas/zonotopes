@@ -29,7 +29,6 @@ def concretize_to_box(vertices):
     min_vals = np.min(vertices, axis=0)
     max_vals = np.max(vertices, axis=0)
     return np.vstack((min_vals, max_vals)).T
-    
 
 def abstract_to_zonotope(box):
     """
@@ -80,6 +79,63 @@ def abstract_to_constrained_zonotope(box):
 
     # Return the zonotope
     return ConstrainedZonotope(W, center, [])
+
+def relu_interval_propagation(intervals):
+    """
+    Propagates intervals through a ReLU activation function.
+    
+    Parameters:
+    - intervals: A NumPy array of shape (n, 2), where each row is [l, u].
+    
+    Returns:
+    - A NumPy array of shape (n, 2) with propagated intervals.
+    """
+    propagated_intervals = np.zeros_like(intervals)
+
+    l, u = intervals[:, 0], intervals[:, 1]  # Extract lower and upper bounds
+    
+    # Fully negative case: Map to [0, 0]
+    propagated_intervals[:, 0] = np.maximum(l, 0)  # Lower bound
+    propagated_intervals[:, 1] = np.maximum(u, 0)  # Upper bound
+
+    return propagated_intervals
+
+def clamp_interval_propagation(intervals, lower_bound, upper_bound):
+        """
+        Clamps the propagated interval values within a specified range.
+        
+        Parameters:
+        - intervals: NumPy array of shape (n, 2), where each row is [l, u].
+        - lower_bound: Float or NumPy array of shape (n,) representing the minimum allowed values.
+        - upper_bound: Float or NumPy array of shape (n,) representing the maximum allowed values.
+
+        Returns:
+        - A NumPy array of shape (n, 2) representing the clamped intervals.
+        """
+        clamped_lower = np.maximum(intervals[:, 0], lower_bound)
+        clamped_upper = np.minimum(intervals[:, 1], upper_bound)
+        return np.vstack((clamped_lower, clamped_upper)).T
+
+def linear_interval_propagation(intervals, W, b):
+    """
+    Propagates intervals through a linear transformation.
+
+    Parameters:
+    - W: NumPy array of shape (m, n), the weight matrix.
+    - b: NumPy array of shape (m,), the bias vector.
+    - intervals: NumPy array of shape (n, 2), where each row is [l, u].
+
+    Returns:
+    - A NumPy array of shape (m, 2) representing the transformed intervals.
+    """
+
+    l, u = intervals[:, 0], intervals[:, 1]
+
+    # Compute transformed lower and upper bounds considering sign of W
+    lower_bounds = W @ l[:, np.newaxis] + b 
+    upper_bounds = W @ u[:, np.newaxis] + b
+
+    return np.vstack((lower_bounds.T[0], upper_bounds.T[0])).T
 
 def clamp(value, min_val, max_val):
     """
