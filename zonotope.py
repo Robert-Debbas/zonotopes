@@ -15,10 +15,10 @@ class Zonotope:
         self.b = np.array(b)  # Ensure b is a numpy array
         
         # Validate dimensions
-        if self.W.ndim != 2 or self.b.ndim != 1:
-            raise ValueError("W must be a 2D array and b must be a 1D array.")
-        if self.W.shape[0] != self.b.shape[0]:
-            raise ValueError("The number of rows in W must match the size of b.")
+        # if self.W.ndim != 2 or self.b.ndim != 1:
+        #     raise ValueError("W must be a 2D array and b must be a 1D array.")
+        # if self.W.shape[0] != self.b.shape[0]:
+        #     raise ValueError("The number of rows in W must match the size of b.")
     
     def linear_transformation(self, weights, biases):
 
@@ -26,6 +26,7 @@ class Zonotope:
 
         self.b = np.dot(weights, self.b) + biases.T
         self.b = self.b.T
+
 
         return self
 
@@ -79,14 +80,18 @@ class Zonotope:
         for i in range(self.W.shape[0]):
 
             if u[i] <= 0:
+                print("RELU 0")
                 # Fully negative case: y = 0
                 W_new[i] = np.hstack((np.zeros(self.W.shape[1]), 0))  # Append 0 for the new noise dimension
                 b_new[i] = 0
+
             elif l[i] >= 0:
+                print("RELU NOT 0")
                 # Fully positive case: y = x
                 W_new[i] = np.hstack((self.W[i], 0)) # Append 0 for the new noise dimension
                 b_new[i] = self.b[i]
             else:
+                print("RELU NOT 0")
                 # Unstable case: l[i] < 0 < u[i]
                 a_param = u[i] / (u[i] - l[i])
                 b_param = -u[i] * l[i] / (u[i] - l[i])
