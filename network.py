@@ -58,9 +58,7 @@ class Layer:
 
     def propagate_zonotope(self, zonotope):
         
-        zonotope = zonotope.linear_transformation(self.weights, self.biases)
-        # print(f'Zonotope Generator:{zonotope.W}\nZonotope Center:{zonotope.b}\nConcretization:{zonotope.concretize()}')
-        
+        zonotope = zonotope.linear_transformation(self.weights, self.biases)     
 
         if self.activation == 'relu': zonotope = zonotope.abstract_ReLU()
         elif self.activation == 'clamp': zonotope = zonotope.abstract_floor().abstract_clamp(self.upper_bound)
@@ -211,7 +209,6 @@ class Network:
         zonotope = abstract_to_zonotope(box)
 
         for i in range(start, len(self.layers)): 
-            # print(f'Zonotope Generator:{zonotope.W}\nZonotope Center:{zonotope.b}\nConcretization:{zonotope.concretize()}')
             zonotope = self.layers[i].propagate_zonotope(zonotope)
 
         out_box = zonotope.concretize()
