@@ -7,6 +7,7 @@ from network import Network
 from network import generate_network
 from network import generate_input_box
 from network import print_network_parameters
+from network import quantization_error_vertices
 from network import quantization_error
 from network import abstraction_error
 from zonotope import Zonotope
@@ -37,7 +38,8 @@ network = generate_network(structure)
 # W2 = np.array([[1.85, -3.25, 2.42], [0.93, 4.17, -2.83]])
 # b2 = np.array([[1.21], [-1.79]])
 
-# layer0 = Layer(W0, b0, activation='re
+
+# layer0 = Layer(W0, b0, activation='relu')
 # layer1 = Layer(W1, b1, activation='relu')
 # layer2 = Layer(W2, b2, activation='id')
 
@@ -84,11 +86,13 @@ print(input_box)
 # TESTS                                                        #
 ################################################################
 
-n = 10000000
+n1 = 10000000
+
+n2 = 10000
 
 print_network_parameters(network)
 
-output_box_15 = network.propagate_vertices_random(input_box, n)
+output_box_15 = network.propagate_vertices_random(input_box, n1)
 print(f"Propagation of random vertices through NN:\n {output_box_15}")
 
 output_box_2, zonotopeNN = network.propagate_zonotope(input_box)
@@ -102,7 +106,7 @@ print(f"Propagation of constrained zonotope (rectangle) through NN:\n {output_bo
 
 print_network_parameters(quantized_network)
 
-output_box_35 = quantized_network.propagate_vertices_random(input_box, n)
+output_box_35 = quantized_network.propagate_vertices_random(input_box, n1)
 print(f"Propagation of random vertices through QNN:\n {output_box_35}")
 
 output_box_4, zonotopeQNN = quantized_network.propagate_zonotope(input_box)
@@ -120,7 +124,10 @@ print(f"Its concretization:\n{abstraction_error_zonotope.concretize()}")
 
 abstraction_error_zonotope_quantized = abstraction_error(quantized_network, zonotopeQNN, input_box)
 print(f"Abstraction error zonotope of zonotope propgated through QNN:\nWeight:{abstraction_error_zonotope_quantized.W}\nbias:{abstraction_error_zonotope_quantized.b}")
-print(f"Its concretization=:\n{abstraction_error_zonotope_quantized.concretize()}")
+print(f"Its concretization:\n{abstraction_error_zonotope_quantized.concretize()}")
+
+quantization_error_points = quantization_error_vertices(network, quantized_network, input_box, n2)
+print(f"Quantization error by union of points:{quantization_error_points}")
 
 quantization_error_zonotope = quantization_error(network, quantized_network, zonotopeNN, zonotopeQNN, input_box, 0.5, 0.5)
 print(f"Quantization error zonotope:\nWeight:{quantization_error_zonotope.W}\nbias:{quantization_error_zonotope.b}")

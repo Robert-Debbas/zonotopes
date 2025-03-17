@@ -354,11 +354,38 @@ def abstraction_error(network, zonotope, input_box):
     center = center_from_box(input_box)
 
     dim_input = structure[0]
+    
+    print(center)
 
     b_prime = network.propagate(center)
 
     return Zonotope(W[:,dim_input:], b_prime - b)
 
+
+def quantization_error_vertices(NN, QNN, input_box, samples):
+
+    structure = structure_from_network(NN)
+
+    vertices = sample_vectors_from_box(input_box, samples)
+
+    errors = np.zeros((structure[-1], len(vertices)))
+
+    for i in range(len(vertices)): 
+
+        output_NN = NN.propagate(np.array([vertices[i]]))
+        output_QNN = QNN.propagate(np.array([vertices[i]]))
+        
+        errors[:,i] = output_QNN - output_NN
+
+    upper_error = np.max(errors, axis = 1)
+    lower_error = np.min(errors, axis = 1)
+
+    error_bounds = np.hstack((lower_error, upper_error))
+
+    return error_bounds
+
+
+    
 
 
 
