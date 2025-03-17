@@ -111,10 +111,10 @@ class Network:
             exponent2 = - Fb
 
 
-        self.layers[0].weights = clamp(np.round(self.layers[0].weights * (2 ** Fw)), Clb_w, Cub_w)
+        self.layers[0].weights = clamp(np.floor(self.layers[0].weights * (2 ** Fw)), Clb_w, Cub_w)
         self.layers[0].weights = (2 ** (exponent1)) * self.layers[0].weights
 
-        self.layers[0].biases = clamp(np.round(self.layers[0].biases * (2 ** Fb)), Clb_b, Cub_b)
+        self.layers[0].biases = clamp(np.floor(self.layers[0].biases * (2 ** Fb)), Clb_b, Cub_b)
         self.layers[0].biases = (2 ** (exponent2)) * self.layers[0].biases
 
         if self.layers[0].activation == 'relu': 
@@ -131,9 +131,9 @@ class Network:
 
         for i in range(1, len(self.layers) - 1):
 
-            self.layers[i].weights = clamp(np.round(self.layers[i].weights * (2**Fw)), Clb_w, Cub_w)
+            self.layers[i].weights = clamp(np.floor(self.layers[i].weights * (2**Fw)), Clb_w, Cub_w)
             self.layers[i].weights = (2**(exponent1)) * self.layers[i].weights
-            self.layers[i].biases = clamp(np.round(self.layers[i].biases * (2**Fb)), Clb_b, Cub_b)
+            self.layers[i].biases = clamp(np.floor(self.layers[i].biases * (2**Fb)), Clb_b, Cub_b)
             self.layers[i].biases = (2**(exponent2)) * self.layers[i].biases
 
             if self.layers[i].activation == 'relu': 
@@ -148,10 +148,10 @@ class Network:
             exponent1 = - Fw 
             exponent2 = - Fb
 
-        self.layers[-1].weights = clamp(np.round(self.layers[-1].weights * (2**Fw)), Clb_w, Cub_w)
+        self.layers[-1].weights = clamp(np.floor(self.layers[-1].weights * (2**Fw)), Clb_w, Cub_w)
         self.layers[-1].weights = (2**(exponent1)) * self.layers[-1].weights
 
-        self.layers[-1].biases = clamp(np.round(self.layers[-1].biases * (2**Fb)), Clb_b, Cub_b)
+        self.layers[-1].biases = clamp(np.floor(self.layers[-1].biases * (2**Fb)), Clb_b, Cub_b)
         self.layers[-1].biases = (2**(exponent2)) * self.layers[-1].biases
 
         if self.layers[-1].activation == 'relu': 
@@ -361,6 +361,7 @@ def abstraction_error(network, zonotope, input_box):
     b_prime = network.propagate(center)
 
     return Zonotope(W[:,dim_input:], b_prime - b)
+
 
 
 
