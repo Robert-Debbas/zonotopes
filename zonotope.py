@@ -74,34 +74,37 @@ class Zonotope:
         """
         l, u = self.bounds() 
 
-        W_new = np.zeros((len(self.W), len(self.W[0])+1))
+        W_new = np.zeros((len(self.W), len(self.W[0])))
+        W_diag = []
         b_new = np.zeros((len(self.b)))
 
         for i in range(self.W.shape[0]):
 
             if u[i] <= 0:
-                print("RELU 0")
                 # Fully negative case: y = 0
-                W_new[i] = np.hstack((np.zeros(self.W.shape[1]), 0))  # Append 0 for the new noise dimension
+                W_new[i] = np.zeros(self.W.shape[1]) # Append 0 for the new noise dimension
+                W_diag.append(0)
                 b_new[i] = 0
 
             elif l[i] >= 0:
-                print("RELU NOT 0")
                 # Fully positive case: y = x
-                W_new[i] = np.hstack((self.W[i], 0)) # Append 0 for the new noise dimension
+                W_new[i] = self.W[i] # Append 0 for the new noise dimension
+                W_diag.append(0)
                 b_new[i] = self.b[i]
+
             else:
-                print("RELU NOT 0")
                 # Unstable case: l[i] < 0 < u[i]
                 a_param = u[i] / (u[i] - l[i])
                 b_param = -u[i] * l[i] / (u[i] - l[i])
 
                 # Adjust W and add new noise symbol
-                W_new[i] = np.hstack((a_param * self.W[i], b_param/2))
+                W_new[i] = a_param * self.W[i]
+                W_diag.append(b_param[0]/2)
                 b_new[i] = a_param * self.b[i] + b_param/2
 
-        self.W = np.array(W_new)
-        self.b = np.array(b_new)
+
+        self.W = np.hstack((W_new, np.diag(W_diag)))
+        self.b = b_new
 
         return self
 
@@ -117,24 +120,28 @@ class Zonotope:
         """
         l, u = self.bounds()  # Get the bounds of the zonotope
 
-        W_new = np.zeros((len(self.W), len(self.W[0]) + 1))
+        W_new = np.zeros((len(self.W), len(self.W[0])))
+        W_diag = []
         b_new = np.zeros((len(self.b)))
 
         for i in range(self.W.shape[0]):
 
             if u[i] <= 0:
                 # Fully negative case: clamp(x, 0, C^{ub}) = 0
-                W_new[i] = np.hstack((np.zeros(self.W.shape[1]), 0))  # Append 0 for the new noise dimension
+                W_new[i] = np.zeros(self.W.shape[1])  # Append 0 for the new noise dimension
+                W_diag.append(0)
                 b_new[i] = 0
 
             elif l[i] >= C_ub:
                 # Fully above C^{ub}: clamp(x, 0, C^{ub}) = C^{ub}
-                W_new[i] = np.hstack((np.zeros(self.W.shape[1]), 0))  # No noise
+                W_new[i] = np.zeros(self.W.shape[1])  # No noise
+                W_diag.append(0)
                 b_new[i] = C_ub
 
             elif l[i] >= 0 and u[i] <= C_ub:
                 # Fully within the range [0, C^{ub}]: clamp(x, 0, C^{ub}) = x
-                W_new[i] = np.hstack((self.W[i], 0)) # Append 0 for the new noise dimension
+                W_new[i] = self.W[i] # Append 0 for the new noise dimension
+                W_diag.append(0)
                 b_new[i] = self.b[i]
 
             else:
@@ -143,7 +150,7 @@ class Zonotope:
                 if l[i] < 0 and C_ub <= u[i]:
                     # Case: l <= 0 <= C^{ub} <= u
                     a_param = min((C_ub / (C_ub - l[i])), (C_ub / u[i]))
-                    b_param = max((1 - a_param) * C_ub, - a_param * l[i])
+                    b_param = (1 - a_param) * C_ub
 
                 elif l[i] < 0 and u[i] <= C_ub:
                     # Case: l <= 0 < u <= C^{ub}
@@ -155,26 +162,23 @@ class Zonotope:
                     a_param = (C_ub - l[i]) / (u[i] - l[i])
                     b_param = (C_ub - l[i]) * (1 - a_param)
 
-                W_new[i] = np.hstack((a_param * self.W[i], b_param / 2))
-                b_new[i] = a_param * self.b[i] + b_param / 2
+                W_new[i] = a_param * self.W[i]
+                W_diag.append(b_param[0]/2)
+                b_new[i] = a_param * self.b[i] + b_param/2
 
-        self.W = W_new
+        self.W = np.hstack((W_new, np.diag(W_diag)))
         self.b = b_new
 
         return self
 
-    def abstract_round(self): 
+    def abstract_floor(self): 
         """
-        Abstracts the rounding function over the current zonotope.
-
-        Parameters:
-        - lambda_val: Regularization parameter for the least squares computation.
+        Abstracts the floor function over the current zonotope.
 
         Returns:
-        - Zonotope: A new Zonotope object representing the abstracted round function.
+        - Zonotope: A new Zonotope object representing the abstracted floor function.
         """
+        self.W = np.hstack((self.W, 0.5 * np.eye(len(self.W))))
+        self.b += - 0.5 * np.ones_like(self.b)
 
-        W_new = np.zeros((len(self.W), len(self.W[0]) + 1))
-        for i in range(len(self.b)): W_new[i] = np.hstack((self.W[i], 0.5))
-        self.W = W_new
         return self

@@ -34,7 +34,7 @@ class Layer:
         vector = (self.weights @ vector.T + self.biases).T
 
         if self.activation == 'relu': vector = np.maximum(0, vector)
-        elif self.activation == 'clamp': vector = clamp(np.round(vector), self.lower_bound, self.upper_bound)
+        elif self.activation == 'clamp': vector = clamp(np.floor(vector), self.lower_bound, self.upper_bound)
 
         return vector
 
@@ -43,7 +43,7 @@ class Layer:
         box = linear_interval_propagation(box, self.weights, self.biases)
 
         if self.activation == 'relu': box = relu_interval_propagation(box)
-        elif self.activation == 'clamp': box = clamp_interval_propagation(np.round(box), self.lower_bound, self.upper_bound)
+        elif self.activation == 'clamp': box = clamp_interval_propagation(np.floor(box), self.lower_bound, self.upper_bound)
 
         return box
 
@@ -52,25 +52,27 @@ class Layer:
         vertices = np.dot(self.weights, vertices.T).T + self.biases.T
 
         if self.activation == 'relu': vertices = np.maximum(0, vertices)
-        elif self.activation == 'clamp': vertices = clamp(np.round(vertices), self.lower_bound, self.upper_bound)
+        elif self.activation == 'clamp': vertices = clamp(np.floor(vertices), self.lower_bound, self.upper_bound)
 
         return vertices
 
     def propagate_zonotope(self, zonotope):
         
         zonotope = zonotope.linear_transformation(self.weights, self.biases)
+        # print(f'Zonotope Generator:{zonotope.W}\nZonotope Center:{zonotope.b}\nConcretization:{zonotope.concretize()}')
+        
 
         if self.activation == 'relu': zonotope = zonotope.abstract_ReLU()
-        elif self.activation == 'clamp': zonotope = zonotope.abstract_round().abstract_clamp(self.upper_bound)
+        elif self.activation == 'clamp': zonotope = zonotope.abstract_floor().abstract_clamp(self.upper_bound)
 
         return zonotope
 
-    def propagate_constrained_zonotope(self, czonotope):
+    def propagate_constrained_zonotope(self, czonotope, version):
         
         czonotope = czonotope.linear_transformation(self.weights, self.biases)
 
-        if self.activation == 'relu': czonotope = czonotope.abstract_ReLU()
-        elif self.activation == 'clamp': czonotope = czonotope.abstract_round().abstract_clamp(self.upper_bound)
+        if self.activation == 'relu': czonotope = czonotope.abstract_ReLU(version)
+        elif self.activation == 'clamp': czonotope = czonotope.abstract_floor().abstract_clamp(self.upper_bound, version)
 
         return czonotope
         
@@ -208,13 +210,15 @@ class Network:
 
         zonotope = abstract_to_zonotope(box)
 
-        for i in range(start, len(self.layers)): zonotope = self.layers[i].propagate_zonotope(zonotope)
+        for i in range(start, len(self.layers)): 
+            # print(f'Zonotope Generator:{zonotope.W}\nZonotope Center:{zonotope.b}\nConcretization:{zonotope.concretize()}')
+            zonotope = self.layers[i].propagate_zonotope(zonotope)
 
         out_box = zonotope.concretize()
 
         return out_box, zonotope
     
-    def propagate_constrained_zonotope(self, box):
+    def propagate_constrained_zonotope(self, box, version):
         
         start = 0
 
@@ -228,7 +232,7 @@ class Network:
 
         czonotope = abstract_to_constrained_zonotope(box)
 
-        for i in range(start, len(self.layers)): czonotope = self.layers[i].propagate_constrained_zonotope(czonotope)
+        for i in range(start, len(self.layers)): czonotope = self.layers[i].propagate_constrained_zonotope(czonotope, version)
 
         out_box = czonotope.final_concretize()
 
@@ -288,8 +292,29 @@ def print_network_parameters(network):
         print("Activation:", layer.activation)
         print("-" * 40)
 
+def structure_from_network(NN):
 
-def quantization_error(zonotopeNN, zonotopeQNN, dim_input):
+    structure = []
+
+    for i in range(len(NN.layers)): structure.append(len(NN.layers[i].weights[0]))
+
+    structure.append(len(NN.layers[-1].weights))
+
+    return structure
+
+def center_from_box(box):
+
+    center = np.zeros((1, len(box)))
+
+    for i in range(len(box)): center[0][i] = (box[i][0] + box[i][1])/2
+
+    return center
+
+
+def quantization_error(NN, QNN, zonotopeNN, zonotopeQNN, input_box, gamma1, gamma2): 
+
+    structure = structure_from_network(NN)
+    center = center_from_box(input_box)
 
     W, b = zonotopeNN.W, zonotopeNN.b
     Wq, bq = zonotopeQNN.W, zonotopeQNN.b
@@ -299,17 +324,47 @@ def quantization_error(zonotopeNN, zonotopeQNN, dim_input):
     WqT = Wq.T
     WeT = We.T
 
-    for i in range(dim_input): WeT[i] = WT[i] - WqT[i]
-    for j in range(dim_input, len(WeT)): 
-        print(WT, dim_input + (j - dim_input)//2)
-        if (j - dim_input) % 2 == 0: WeT[j] = WqT[j]
-        else: WeT[j] = WT[dim_input + (j - dim_input)//2 - 1] - WqT[j]
+    start = 0
+    start_qe = 0
+
+    for i in range(structure[0]): WeT[start_qe + i] = WqT[start_qe + i] - WT[start + i] 
+    
+    start += structure[0]
+    start_qe += structure[0]
+
+    for i in range(1, len(structure) - 1): 
+        for j in range(structure[i]): WeT[start_qe + j] = WqT[start_qe + j]
+        start_qe += structure[i]
+        for j in range(structure[i]): WeT[start_qe + j] = WqT[start_qe + j] - WT[start + j] 
+        start += structure[i]
+        start_qe += structure[i]
+            
+    b_prime = NN.propagate(center)
+    bq_prime = QNN.propagate(center)
 
     We = WeT.T
-    be = b - bq
+    be = (gamma1 * bq_prime + (1 - gamma1) * bq) - (gamma2 * b_prime + (1 - gamma2) * b)
 
     return Zonotope(We, be)
 
-    
 
+def abstraction_error(network, zonotope, input_box):
+
+    structure = structure_from_network(network)
+
+    W, b = zonotope.W, zonotope.b
+
+    center = center_from_box(input_box)
+
+    dim_input = structure[0]
+
+    b_prime = network.propagate(center)
+
+    return Zonotope(W[:,dim_input:], b_prime - b)
+
+
+
+
+
+    
 

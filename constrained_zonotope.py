@@ -97,7 +97,7 @@ class ConstrainedZonotope:
         
         return bounds
 
-    def abstract_ReLU(self):
+    def abstract_ReLU(self, version):
         """
         Abstracts the ReLU function over the current constrainted zonotope.
 
@@ -109,10 +109,14 @@ class ConstrainedZonotope:
 
         l, u = bounds.T[0], bounds.T[1]
 
-        W_new = np.zeros((len(self.W), len(self.W[0])+1))
+        W_new = np.zeros((len(self.W), len(self.W[0])))
         b_new = np.zeros(len(self.b))
 
+        zero_column = np.zeros((len(self.W), 1))
+
         for i in range(self.W.shape[0]):
+
+            W_new = np.hstack((W_new, zero_column))
 
             if u[i] <= 0:
                 # Fully negative case: y = 0
@@ -126,99 +130,46 @@ class ConstrainedZonotope:
 
             else:
 
+                old_row = np.hstack((self.W[i], 0))
+                old_bias = self.b[i]
+
                 # Unstable case: l[i] < 0 < u[i]
                 a_param = u[i] / (u[i] - l[i])
                 b_param = - u[i] * l[i] / (u[i] - l[i])
 
-                # Adjust W and add new noise symbol
-                new_row = np.hstack((a_param * self.W[i], b_param/2))
-                new_bias = a_param * self.b[i] + b_param/2
+                if version == 'standard':
 
-                old_row = np.hstack((self.W[i], 0))
-                old_bias = self.b[i]
+                    # Adjust W and add new noise symbol
+                    new_row = np.hstack((a_param * self.W[i], b_param/2))
+                    new_bias = a_param * self.b[i] + b_param/2
 
-                self.constraints.append((new_row, new_bias))
-                self.constraints.append((new_row - old_row, new_bias - old_bias))
+                    old_row = np.hstack((self.W[i], 0))
+                    old_bias = self.b[i]
+
+                    self.constraints.append((new_row, new_bias))
+                    self.constraints.append((new_row - old_row, new_bias - old_bias))
+
+                else:
+
+                    new_row = np.hstack(( 0 * self.W[i], u[i]/2))
+                    new_bias = u[i]/2
+
+                    self.constraints.append((new_row - old_row, new_bias - old_bias))
+                    self.constraints.append((a_param * old_row - new_row, a_param * old_bias + b_param - new_bias))
+
                 
             W_new[i] = new_row
             b_new[i] = new_bias
 
-        self.W = W_new 
-        self.b = b_new 
-
-        return self
-
-    def abstract_ReLU_new(self):
-        """
-        Abstracts the ReLU function over the current constrainted zonotope.
-
-        Returns:
-        - ConstraintedZonotope: A new ConstraintedZonotope object representing the abstracted ReLU.
-        """
-
-        bounds = self.concretize() 
-
-        l, u = bounds.T[0], bounds.T[1]
-
-        extension = 0
-
-        delta = 0
-
-        W_new = []
-        b_new = []
-
-        for i in range(self.W.shape[0]):
-
-            if u[i] <= 0:
-                # Fully negative case: y = 0
-                new_row = np.zeros(len(self.W[0]))  # Append 0 for the new noise dimension
-                new_bias = 0
-
-            elif l[i] >= 0:
-                # Fully positive case: y = x
-                new_row = self.W[i] # Append 0 for the new noise dimension
-                new_bias = self.b[i][0]
-
-            else:
-
-                extension += 1
-
-                b_param = u[i] 
-
-                # Adjust W and add new noise symbol
-                new_row = np.concatenate((np.zeros(len(self.W[0]) + extension - 1), np.array([b_param/2])))
-                new_bias = b_param/2
-
-                old_row = np.concatenate((self.W[i], np.zeros(extension)))
-                old_bias = self.b[i][0]
-
-                lambda_cons_2 = u[i] / (u[i] - l[i])
-                mu_cons_2 = - (u[i] * l[i]) / (u[i] - l[i])
-
-                constraint_1 = (new_row - old_row, new_bias - old_bias)
-                constraint_2 = (lambda_cons_2 * old_row - new_row, lambda_cons_2 * old_bias + mu_cons_2 - new_bias)
-
-                self.constraints.append(constraint_1)
-                self.constraints.append(constraint_2)
-                
-            W_new.append(new_row)
-            b_new.append(new_bias)
-
-        max_cols = max(arr.shape[0] for arr in W_new) 
-    
-        padded_matrix = np.zeros((len(W_new), max_cols))
-        
-        for i, arr in enumerate(W_new): padded_matrix[i, :arr.shape[0]] = arr
-
-        W_new = padded_matrix
-        b_new = np.array(b_new)
+            self.W = np.hstack((self.W, zero_column))
 
         self.W = W_new 
         self.b = b_new 
 
         return self
 
-    def abstract_clamp(self, C_ub):
+
+    def abstract_clamp(self, C_ub, version):
         """
         Abstracts the clamp(x, 0, C^{ub}) function over the current zonotope.
 
@@ -233,10 +184,14 @@ class ConstrainedZonotope:
 
         l, u = bounds.T[0], bounds.T[1]
 
-        W_new = np.zeros((len(self.W), len(self.W[0]) + 1))
+        W_new = np.zeros((len(self.W), len(self.W[0])))
         b_new = np.zeros((len(self.b)))
 
+        zero_column = np.zeros((len(self.W), 1))
+
         for i in range(self.W.shape[0]):
+
+            W_new = np.hstack((W_new ,zero_column))
 
             if u[i] <= 0:
                 # Fully negative case: clamp(x, 0, C^{ub}) = 0
@@ -255,53 +210,108 @@ class ConstrainedZonotope:
 
             else:
 
+                old_row = np.hstack((self.W[i], 0))
+                old_bias = self.b[i]
+
                 # Mixed case: clamp(x, 0, C^{ub}) needs abstraction
                 if l[i] < 0 and C_ub <= u[i]:
                     # Case: l <= 0 <= C^{ub} <= u
-                    a_param = min((C_ub / (C_ub - l[i])), (C_ub / u[i]))
-                    b_param = max((1 - a_param) * C_ub, - a_param * l[i])
+
+                    if version == 'standard':
+
+                        a_param = min((C_ub / (C_ub - l[i])), (C_ub / u[i]))
+                        b_param = (1 - a_param) * C_ub
+
+                        new_row = np.hstack((a_param * self.W[i], b_param / 2))
+                        new_bias = a_param * self.b[i] + b_param / 2
+
+                        if C_ub - l[i] >= u[i]:
+
+                            self.constraints.append((new_row,  new_bias))
+                            self.constraints.append(( - new_row , C_ub - new_bias))
+                            self.constraints.append((new_row - (C_ub/u[i]) * old_row, new_bias - (C_ub/u[i]) * old_bias))
+                        
+                        else: 
+
+                            self.constraints.append((new_row,  new_bias))
+                            self.constraints.append(( - new_row , C_ub - new_bias))
+                            self.constraints.append(((C_ub / (C_ub - l[i])) * old_row - new_row, (C_ub / (C_ub - l[i])) * old_bias - ((l[i] * C_ub) / (C_ub - l[i])) - new_bias))
+            
+
+                    else:
+
+                        new_row = np.hstack(( 0 * self.W[i], C_ub / 2))
+                        new_bias = C_ub / 2
+
+                        self.constraints.append(((C_ub / (C_ub - l[i])) * old_row - new_row, (C_ub / (C_ub - l[i])) * old_bias - ((l[i] * C_ub) / (C_ub - l[i])) - new_bias))
+                        self.constraints.append((new_row - (C_ub/u[i]) * old_row, new_bias - (C_ub/u[i]) * old_bias))
+
 
                 elif l[i] < 0 and u[i] <= C_ub:
+
                     # Case: l <= 0 < u <= C^{ub}
                     a_param = u[i] / (u[i] - l[i])
                     b_param = - u[i] * l[i] / (u[i] - l[i])
 
+                    if version == 'standard':
+
+                        new_row = np.hstack((a_param * self.W[i], b_param / 2))
+                        new_bias = a_param * self.b[i] + b_param / 2
+
+                        self.constraints.append((new_row, new_bias))
+                        self.constraints.append((new_row - old_row, new_bias - old_bias))
+
+                    else:
+
+                        new_row = np.hstack(( 0 * self.W[i], u[i]/2))
+                        new_bias = u[i]/2
+
+                        self.constraints.append((new_row - old_row, new_bias - old_bias))
+                        self.constraints.append((a_param * old_row - new_row, a_param * old_bias + b_param - new_bias))
+
+
                 elif l[i] >= 0 and C_ub < u[i]:
                     # Case: 0 <= l <= C^{ub} < u
+
                     a_param = (C_ub - l[i]) / (u[i] - l[i])
                     b_param = (C_ub - l[i]) * (1 - a_param)
 
-                old_row = np.hstack((self.W[i], 0))
-                old_bias = self.b[i]
+                    if version == 'standard':
+                        
+                        new_row = np.hstack((a_param * self.W[i], b_param / 2))
+                        new_bias = a_param * self.b[i] + b_param / 2
 
-                new_row = np.hstack((a_param * self.W[i], b_param / 2))
-                new_bias = a_param * self.b[i] + b_param / 2
+                        self.constraints.append((old_row - new_row, old_bias - new_bias))
+                        self.constraints.append(( - new_row , C_ub - new_bias))
+                    
+                    else: 
 
-                self.constraints.append((new_row,  new_bias))
-                self.constraints.append((new_row - old_row, new_bias - old_bias))
+                        new_row = np.hstack((0 * self.W[i], (C_ub - l[i]) / 2))
+                        new_bias = (C_ub + l[i]) / 2
+
+                        self.constraints.append((old_row - new_row, old_bias - new_bias))
+                        self.constraints.append((new_row - a_param * old_row, new_bias - a_param * old_bias - b_param ))
 
             W_new[i] = new_row
             b_new[i] = new_bias
+
+            self.W = np.hstack((self.W, zero_column))
 
         self.W = W_new
         self.b = b_new
 
         return self
 
-    def abstract_round(self):
-        """
-        Abstracts the rounding function over the current zonotope.
 
-        Parameters:
-        - lambda_val: Regularization parameter for the least squares computation.
+
+    def abstract_floor(self):
+        """
+        Abstracts the flooring function over the current zonotope.
 
         Returns:
-        - Zonotope: A new Zonotope object representing the abstracted round function.
+        - Zonotope: A new Zonotope object representing the abstracted floor function.
         """
-        W_new = np.zeros((len(self.W), len(self.W[0]) + 1))
-
-        for i in range(len(self.b)): W_new[i] = np.hstack((self.W[i], 0.5))
-
-        self.W = W_new
+        self.W = np.hstack((self.W, 0.5 * np.eye(len(self.W))))
+        self.b += - 0.5 * np.ones_like(self.b)
 
         return self
