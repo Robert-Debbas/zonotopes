@@ -27,7 +27,6 @@ network = generate_network(structure)
 
 # W0 = np.array([[-1.02946293, -0.76284027],[-3.78575567, -1.04142831]])
 # b0 = np.array([[-4.28482608], [ 3.38609108]])
-
 # W1 = np.array([[2.70114439, 2.46951665]])
 # b1 = np.array([[4.6516897]])
 
@@ -72,20 +71,11 @@ quantized_network = intermediate_network.quantize(quant_config, version = 2)
 
 # input_box = generate_input_box(dim, r)
 
-# input_box = np.array([
-#         [0.5, 1.5],  
-#         [1.5, 2.5],
-#         [-1.5, -0.5],
-#         [3.5, 4.5],
-#         [-3.5, -2.5]
-#     ])
 
 input_box = np.array([
         [0.5, 1.5],  
         [1.5, 2.5],
         [-1.5, -0.5]])
-
-# input_box = np.array([[0.5, 1.5],  [1.5, 2.5]])
 
 
 print(input_box)
