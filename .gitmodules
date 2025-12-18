@@ -1,0 +1,3 @@
+[submodule "QEBVerif"]
+	path = QEBVerif
+	url = https://github.com/S3L-official/QEBVerif
