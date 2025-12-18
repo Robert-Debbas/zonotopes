@@ -51,10 +51,16 @@ cd QuantizedZonotopeVerification
 julia --project=. -e 'using Pkg; Pkg.instantiate()'
 ```
 
-**Note:** Network files and baseline implementations are not included in the repository. See **[SETUP.md](SETUP.md)** for complete setup instructions including:
-- How to obtain/prepare ACAS Xu network files
-- Setting up QEBVerif baseline (optional)
-- Troubleshooting common issues
+**Note:** Network files and baseline implementations are not included in the repository (gitignored). To run the ACAS Xu benchmarks, you'll need to:
+
+1. **Obtain ACAS Xu networks**: Available from [NeuralVerification.jl](https://github.com/sisl/NeuralVerification.jl/tree/master/examples/ACASXu)
+2. **Convert to JSON format**: Networks should be in `networks/acasxu_X_Y.json` format (see `src/utils/network_io.jl` for expected structure)
+3. **Optional - QEBVerif baseline**: Clone from [QEBVerif repo](https://github.com/Lawepwasd/QEBVerif) for comparison
+
+Without networks, you can still:
+- Run unit tests: `julia --project=. test/runtests.jl`
+- Test on synthetic networks (see `test/test_network.jl`)
+- Use your own network files
 
 ## Usage
 

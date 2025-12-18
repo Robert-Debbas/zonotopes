@@ -4,7 +4,9 @@ This directory contains benchmark scripts for evaluating the quantized zonotope 
 
 ## Prerequisites
 
-**Note:** These benchmarks require ACAS Xu network files which are not included in the repository. See **[../SETUP.md](../SETUP.md)** for instructions on obtaining and setting up network files.
+**Note:** These benchmarks require ACAS Xu network files which are not included in the repository (gitignored).
+
+To obtain networks: Download from [NeuralVerification.jl](https://github.com/sisl/NeuralVerification.jl/tree/master/examples/ACASXu) and convert to JSON format expected by `load_acasxu_network_from_json()`.
 
 To run without networks, you can:
 - Run unit tests instead: `julia --project=.. ../test/runtests.jl`
