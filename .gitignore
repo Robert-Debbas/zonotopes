@@ -1,0 +1,42 @@
+# ModelVerification.jl submodule (should be managed separately)
+ModelVerification.jl/
+
+# Network files (potentially large)
+networks/
+
+# Baseline implementations
+QEBVerif/
+
+# Julia
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+.DS_Store
+Manifest.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Results and outputs
+results/data/*.csv
+results/data/*.json
+results/figures/*.png
+results/figures/*.pdf
+results/figures/*.svg
+
+# Keep directory structure but ignore contents
+!results/data/.gitkeep
+!results/figures/.gitkeep
+
+# Temporary files
+*.tmp
+*.log
+*.out
+
+# OS files
+.DS_Store
+Thumbs.db

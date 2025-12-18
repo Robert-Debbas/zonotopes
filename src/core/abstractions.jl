@@ -38,6 +38,29 @@ function abstract_relu(Z::Zonotope)
     return Zonotope(new_c, new_G)
 end
 
+"""
+    abstract_relu_triplet(Z::Zonotope) -> (lambda, mu, E)
+
+Compute the abstract ReLU transformation in triplet form for error propagation.
+
+This function computes the abstract interpretation of the ReLU activation over a zonotope,
+returning the transformation as a triplet (λ, μ, E) where the output can be expressed as
+λZ + μ + E·ε, with ε ∈ [-1,1]ⁿ.
+
+# Arguments
+- `Z::Zonotope`: Input zonotope representing the pre-activation values
+
+# Returns
+- `lambda::Matrix{Float64}`: Diagonal matrix (n×n) of slopes for the linear approximation
+- `mu::Vector{Float64}`: Bias vector (n,) for the affine transformation
+- `E::Matrix{Float64}`: Diagonal matrix (n×n) of error generators
+
+# Algorithm
+For each dimension i with interval [l, u]:
+- If u ≤ 0: Neuron always off → λ=0, μ=0, E=0
+- If l ≥ 0: Neuron always on → λ=1, μ=0, E=0
+- Otherwise: Use triangle relaxation → λ=u/(u-l), with error term
+"""
 function abstract_relu_triplet(Z::Zonotope)
     c = Z.center
     G = Z.generators
@@ -144,6 +167,30 @@ function abstract_round_clamp(Z::Zonotope{Float64}, Cub::Float64)
     return Zonotope(new_c, new_G)
 end
 
+"""
+    abstract_round_clamp_triplet(Z::Zonotope{Float64}, Cub::Int64) -> (lambda, mu, E)
+
+Compute the abstract round-and-clamp transformation in triplet form for quantized activations.
+
+This function abstracts the combined rounding and clamping operation that occurs in
+quantized neural networks: clamp(round(x), 0, Cub). It returns a triplet (λ, μ, E)
+similar to abstract_relu_triplet.
+
+# Arguments
+- `Z::Zonotope{Float64}`: Input zonotope representing pre-quantization activation values
+- `Cub::Int64`: Upper bound for clamping (e.g., 2^bits - 1)
+
+# Returns
+- `lambda::Matrix{Float64}`: Diagonal matrix (n×n) of slopes
+- `mu::Vector{Float64}`: Bias vector (n,)
+- `E::Matrix{Float64}`: Diagonal matrix (n×n) of error generators
+
+# Algorithm
+For each dimension with interval [l, u], handles multiple cases:
+- Fully below 0 or above Cub: Constant output
+- Fully within [0, Cub]: Identity with rounding error (±0.5)
+- Spanning boundaries: Affine relaxation with appropriate error bounds
+"""
 function abstract_round_clamp_triplet(Z::Zonotope{Float64}, Cub::Int64)
     c = Z.center
     G = Z.generators
